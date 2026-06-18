@@ -1807,6 +1807,11 @@ type ResponsesTool struct {
 	InputExamples       []ChatToolInputExample `json:"input_examples,omitempty"`        // Anthropic tool-examples-2025-10-29: example inputs for the tool
 	EagerInputStreaming *bool                  `json:"eager_input_streaming,omitempty"` // Anthropic fine-grained-tool-streaming-2025-05-14
 
+	// Free-form parameters for provider/server tools that are not modeled as a typed
+	// variant — e.g. OpenRouter server tools ("openrouter:web_search" with
+	// {"engine":"exa","max_results":5}). Forwarded verbatim so the tool can be configured.
+	Parameters map[string]interface{} `json:"parameters,omitempty"`
+
 	*ResponsesToolFunction
 	*ResponsesToolFileSearch
 	*ResponsesToolComputerUsePreview
@@ -1865,6 +1870,15 @@ func (t ResponsesTool) MarshalJSON() ([]byte, error) {
 			return nil, ccErr
 		}
 		if data, err = sjson.SetRawBytes(data, "cache_control", ccBytes); err != nil {
+			return nil, err
+		}
+	}
+	if len(t.Parameters) > 0 {
+		pBytes, pErr := MarshalSorted(t.Parameters)
+		if pErr != nil {
+			return nil, pErr
+		}
+		if data, err = sjson.SetRawBytes(data, "parameters", pBytes); err != nil {
 			return nil, err
 		}
 	}
@@ -2018,6 +2032,9 @@ func (t *ResponsesTool) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		t.CacheControl = &cc
+	}
+	if params, ok := raw["parameters"].(map[string]interface{}); ok {
+		t.Parameters = params
 	}
 	// Anthropic-native tool flags. Mirror the emit side in MarshalJSON above —
 	// without these reads, a round-trip silently drops the fields.

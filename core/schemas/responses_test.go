@@ -166,3 +166,20 @@ func TestResponsesMessagePreservesOpenAIPhase(t *testing.T) {
 		t.Fatalf("expected encoded message to contain phase, got %s", encoded)
 	}
 }
+
+func TestResponsesTool_ParametersRoundTrip(t *testing.T) {
+	var tool ResponsesTool
+	if err := Unmarshal([]byte(`{"type":"openrouter:web_search","parameters":{"engine":"exa","max_results":5}}`), &tool); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if tool.Parameters == nil || tool.Parameters["engine"] != "exa" {
+		t.Fatalf("expected parameters.engine=exa to be captured, got %+v", tool.Parameters)
+	}
+	out, err := tool.MarshalJSON()
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(out), `"engine":"exa"`) {
+		t.Fatalf("expected parameters to be preserved on marshal, got %s", string(out))
+	}
+}
