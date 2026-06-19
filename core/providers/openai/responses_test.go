@@ -184,7 +184,7 @@ func TestToOpenAIResponsesRequest_ReasoningOnlyMessageSkip(t *testing.T) {
 				Input: []schemas.ResponsesMessage{tt.message},
 			}
 
-			result := ToOpenAIResponsesRequest(bifrostReq)
+			result := ToOpenAIResponsesRequest(nil, bifrostReq)
 
 			if result == nil {
 				t.Fatal("ToOpenAIResponsesRequest returned nil")
@@ -243,7 +243,7 @@ func TestToOpenAIResponsesRequest_ReasoningStringContent(t *testing.T) {
 			}},
 		}
 
-		result := ToOpenAIResponsesRequest(bifrostReq)
+		result := ToOpenAIResponsesRequest(nil, bifrostReq)
 		original := bifrostReq.Input[0].Content
 		if original == nil || original.ContentStr == nil || *original.ContentStr != "" {
 			t.Fatalf("expected input reasoning content string to remain unchanged, got %#v", original)
@@ -278,7 +278,7 @@ func TestToOpenAIResponsesRequest_ReasoningStringContent(t *testing.T) {
 			}},
 		}
 
-		result := ToOpenAIResponsesRequest(bifrostReq)
+		result := ToOpenAIResponsesRequest(nil, bifrostReq)
 		original := bifrostReq.Input[0].Content
 		if original == nil || original.ContentStr == nil || *original.ContentStr != "thinking" {
 			t.Fatalf("expected input reasoning content string to remain unchanged, got %#v", original)
@@ -422,7 +422,7 @@ func TestToOpenAIResponsesRequest_NormalizesReasoningEffort(t *testing.T) {
 			if provider == "" {
 				provider = schemas.OpenAI
 			}
-			req := ToOpenAIResponsesRequest(&schemas.BifrostResponsesRequest{
+			req := ToOpenAIResponsesRequest(nil, &schemas.BifrostResponsesRequest{
 				Provider: provider,
 				Model:    tt.model,
 				Input: []schemas.ResponsesMessage{{
@@ -543,7 +543,7 @@ func TestToOpenAIResponsesRequest_GPTOSS_SummaryToContentBlocks(t *testing.T) {
 				Input: []schemas.ResponsesMessage{tt.message},
 			}
 
-			result := ToOpenAIResponsesRequest(bifrostReq)
+			result := ToOpenAIResponsesRequest(nil, bifrostReq)
 
 			if result == nil {
 				t.Fatal("ToOpenAIResponsesRequest returned nil")
@@ -1678,7 +1678,7 @@ func TestToOpenAIResponsesRequest_ToolNormalization(t *testing.T) {
 		},
 	}
 
-	result := ToOpenAIResponsesRequest(bifrostReq)
+	result := ToOpenAIResponsesRequest(nil, bifrostReq)
 	if result == nil {
 		t.Fatal("expected non-nil result")
 	}
@@ -1750,7 +1750,7 @@ func TestToOpenAIResponsesRequest_PreservesExplicitEmptyToolParameters(t *testin
 		},
 	}
 
-	result := ToOpenAIResponsesRequest(bifrostReq)
+	result := ToOpenAIResponsesRequest(nil, bifrostReq)
 	if result == nil {
 		t.Fatal("expected non-nil result")
 	}
@@ -1876,7 +1876,7 @@ func TestToOpenAIResponsesRequest_PreservesNamespaceAndWebSearchFields(t *testin
 		},
 	}
 
-	result := ToOpenAIResponsesRequest(bifrostReq)
+	result := ToOpenAIResponsesRequest(nil, bifrostReq)
 	if result == nil {
 		t.Fatal("expected non-nil result")
 	}
@@ -1980,7 +1980,7 @@ func TestToOpenAIResponsesRequest_OpenRouterServerToolsPreserved(t *testing.T) {
 	// provider (web_search, web_fetch, and any future server tool).
 	for _, toolType := range []schemas.ResponsesToolType{"openrouter:web_search", "openrouter:web_fetch"} {
 		t.Run("openrouter keeps "+string(toolType), func(t *testing.T) {
-			result := ToOpenAIResponsesRequest(makeReq(schemas.OpenRouter, toolType))
+			result := ToOpenAIResponsesRequest(nil, makeReq(schemas.OpenRouter, toolType))
 			if result == nil {
 				t.Fatal("ToOpenAIResponsesRequest returned nil")
 			}
@@ -1991,7 +1991,7 @@ func TestToOpenAIResponsesRequest_OpenRouterServerToolsPreserved(t *testing.T) {
 	}
 
 	t.Run("openai strips openrouter: namespace tools", func(t *testing.T) {
-		result := ToOpenAIResponsesRequest(makeReq(schemas.OpenAI, "openrouter:web_search"))
+		result := ToOpenAIResponsesRequest(nil, makeReq(schemas.OpenAI, "openrouter:web_search"))
 		if result == nil {
 			t.Fatal("ToOpenAIResponsesRequest returned nil")
 		}
@@ -2040,7 +2040,7 @@ func TestFilterUnsupportedTools_MaxUses(t *testing.T) {
 				},
 			}
 
-			result := ToOpenAIResponsesRequest(bifrostReq)
+			result := ToOpenAIResponsesRequest(nil, bifrostReq)
 			if result == nil {
 				t.Fatal("expected non-nil result")
 			}
@@ -2133,7 +2133,7 @@ func TestFilterUnsupportedTools_BlockedDomains(t *testing.T) {
 				},
 			}
 
-			result := ToOpenAIResponsesRequest(bifrostReq)
+			result := ToOpenAIResponsesRequest(nil, bifrostReq)
 			if result == nil {
 				t.Fatal("expected non-nil result")
 			}

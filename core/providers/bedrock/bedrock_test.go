@@ -4008,6 +4008,86 @@ func TestNovaReasoningConfigUsesReasoningConfigField(t *testing.T) {
 	assert.False(t, hasThinking, "Nova models should NOT use thinking field")
 }
 
+// TestNovaReasoningEffortClamped verifies efforts above Nova's enum (xhigh/max)
+// are clamped to "high" so Nova doesn't 400 on an invalid maxReasoningEffort.
+func TestNovaReasoningEffortClamped(t *testing.T) {
+	cases := map[string]string{
+		"xhigh":   "high",
+		"max":     "high",
+		"high":    "high",
+		"medium":  "medium",
+		"minimal": "low",
+	}
+	for in, want := range cases {
+		t.Run(in, func(t *testing.T) {
+			bifrostReq := &schemas.BifrostChatRequest{
+				Model: "amazon.nova-pro-v1",
+				Input: []schemas.ChatMessage{
+					{Role: schemas.ChatMessageRoleUser, Content: &schemas.ChatMessageContent{ContentStr: schemas.Ptr("Hello")}},
+				},
+				Params: &schemas.ChatParameters{Reasoning: &schemas.ChatReasoning{Effort: schemas.Ptr(in)}},
+			}
+
+			ctx := schemas.NewBifrostContext(context.Background(), schemas.NoDeadline)
+			result, err := bedrock.ToBedrockChatCompletionRequest(ctx, bifrostReq)
+			require.NoError(t, err)
+
+			cfg, ok := result.AdditionalModelRequestFields.Get("reasoningConfig")
+			require.True(t, ok, "expected reasoningConfig")
+			cfgMap, ok := cfg.(map[string]any)
+			require.True(t, ok)
+			assert.Equal(t, want, cfgMap["maxReasoningEffort"], "effort %q should map to %q", in, want)
+		})
+	}
+}
+
+// TestReasoningSignatureEchoedOnlyWhenNonEmpty verifies that an empty reasoning
+// signature is dropped before sending to Bedrock (MiniMax emits ""), while a real
+// signature is preserved (Anthropic requires it). Keyed on the value, not the model.
+func TestReasoningSignatureEchoedOnlyWhenNonEmpty(t *testing.T) {
+	cases := map[string]struct {
+		in   *string
+		want *string
+	}{
+		"empty signature dropped":  {in: schemas.Ptr(""), want: nil},
+		"nil signature dropped":    {in: nil, want: nil},
+		"real signature preserved": {in: schemas.Ptr("ErUBCkYI"), want: schemas.Ptr("ErUBCkYI")},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			bifrostReq := &schemas.BifrostChatRequest{
+				Model: "anthropic.claude-sonnet-4-5",
+				Input: []schemas.ChatMessage{
+					{Role: schemas.ChatMessageRoleUser, Content: &schemas.ChatMessageContent{ContentStr: schemas.Ptr("hi")}},
+					{
+						Role:    schemas.ChatMessageRoleAssistant,
+						Content: &schemas.ChatMessageContent{ContentStr: schemas.Ptr("ok")},
+						ChatAssistantMessage: &schemas.ChatAssistantMessage{
+							ReasoningDetails: []schemas.ChatReasoningDetails{
+								{Type: schemas.BifrostReasoningDetailsTypeText, Text: schemas.Ptr("thinking"), Signature: tc.in},
+							},
+						},
+					},
+				},
+			}
+
+			ctx := schemas.NewBifrostContext(context.Background(), schemas.NoDeadline)
+			result, err := bedrock.ToBedrockChatCompletionRequest(ctx, bifrostReq)
+			require.NoError(t, err)
+
+			var got *string
+			for _, m := range result.Messages {
+				for _, b := range m.Content {
+					if b.ReasoningContent != nil && b.ReasoningContent.ReasoningText != nil {
+						got = b.ReasoningContent.ReasoningText.Signature
+					}
+				}
+			}
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
 // TestStandaloneCachePointBlockHandling tests that standalone cachePoint content blocks
 // (those with only cachePoint field and no type) are properly converted.
 func TestStandaloneCachePointBlockHandling(t *testing.T) {

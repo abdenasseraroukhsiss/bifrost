@@ -1873,7 +1873,10 @@ func (t ResponsesTool) MarshalJSON() ([]byte, error) {
 			return nil, err
 		}
 	}
-	if len(t.Parameters) > 0 {
+	// Free-form parameters only apply to OpenRouter server tools (e.g.
+	// "openrouter:web_search"). Gate on the namespace so this never collides with
+	// the typed "parameters" of a function tool (ResponsesToolFunction).
+	if len(t.Parameters) > 0 && strings.HasPrefix(string(t.Type), ResponsesToolTypeOpenRouterPrefix) {
 		pBytes, pErr := MarshalSorted(t.Parameters)
 		if pErr != nil {
 			return nil, pErr
@@ -2033,8 +2036,12 @@ func (t *ResponsesTool) UnmarshalJSON(data []byte) error {
 		}
 		t.CacheControl = &cc
 	}
-	if params, ok := raw["parameters"].(map[string]interface{}); ok {
-		t.Parameters = params
+	// Only capture free-form parameters for OpenRouter server tools; the typed
+	// "parameters" of a function tool is handled by ResponsesToolFunction below.
+	if strings.HasPrefix(typeStr, ResponsesToolTypeOpenRouterPrefix) {
+		if params, ok := raw["parameters"].(map[string]interface{}); ok {
+			t.Parameters = params
+		}
 	}
 	// Anthropic-native tool flags. Mirror the emit side in MarshalJSON above —
 	// without these reads, a round-trip silently drops the fields.
